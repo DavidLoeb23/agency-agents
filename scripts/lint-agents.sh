@@ -57,7 +57,7 @@ lint_file() {
   local file="$1"
 
   if [[ ! -f "$file" ]]; then
-    echo "ERROR $file: not a file or does not exist"
+    echo "ERROR $file: not a file or does not exist" >&2
     errors=$((errors + 1))
     return
   fi
@@ -66,7 +66,7 @@ lint_file() {
   # A trailing \r otherwise makes the frontmatter check below fail with a
   # confusing "missing frontmatter ---" even when the file clearly starts ---.
   if LC_ALL=C grep -q $'\r' "$file"; then
-    echo "ERROR $file: CRLF line endings detected — convert to LF (e.g. 'perl -i -pe \"s/\\r\$//\" $file'); repo uses LF per .gitattributes"
+    echo "ERROR $file: CRLF line endings detected — convert to LF (e.g. 'perl -i -pe \"s/\\r\$//\" $file'); repo uses LF per .gitattributes" >&2
     errors=$((errors + 1))
     return
   fi
@@ -75,7 +75,7 @@ lint_file() {
   local first_line
   first_line=$(head -1 "$file")
   if [[ "$first_line" != "---" ]]; then
-    echo "ERROR $file: missing frontmatter opening ---"
+    echo "ERROR $file: missing frontmatter opening ---" >&2
     errors=$((errors + 1))
     return
   fi
@@ -85,7 +85,7 @@ lint_file() {
   frontmatter=$(awk 'NR==1{next} /^---$/{exit} {print}' "$file")
 
   if [[ -z "$frontmatter" ]]; then
-    echo "ERROR $file: empty or malformed frontmatter"
+    echo "ERROR $file: empty or malformed frontmatter" >&2
     errors=$((errors + 1))
     return
   fi
@@ -93,7 +93,7 @@ lint_file() {
   # 2. Check required frontmatter fields
   for field in "${REQUIRED_FRONTMATTER[@]}"; do
     if ! grep -qE -- "^${field}:" <<<"$frontmatter"; then
-      echo "ERROR $file: missing frontmatter field '${field}'"
+      echo "ERROR $file: missing frontmatter field '${field}'" >&2
       errors=$((errors + 1))
     fi
   done
@@ -178,7 +178,7 @@ echo ""
 echo "Results: ${errors} error(s), ${warnings} warning(s) in ${#files[@]} files."
 
 if [[ $errors -gt 0 ]]; then
-  echo "FAILED: fix the errors above before merging."
+  echo "FAILED: fix the errors above before merging." >&2
   exit 1
 else
   echo "PASSED"

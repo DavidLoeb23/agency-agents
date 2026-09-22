@@ -21,7 +21,7 @@ cd "$(dirname "$0")/.."
 
 JSON="tools.json"
 errors=0
-fail() { echo "ERROR $*"; errors=$((errors + 1)); }
+fail() { echo "ERROR $*" >&2; errors=$((errors + 1)); }
 
 # --- helpers ---------------------------------------------------------------
 
@@ -42,7 +42,7 @@ bash_array() {
 
 # --- checks ----------------------------------------------------------------
 
-[[ -f "$JSON" ]] || { echo "ERROR $JSON not found at repo root"; exit 1; }
+[[ -f "$JSON" ]] || { echo "ERROR $JSON not found at repo root" >&2; exit 1; }
 
 canon="$(canonical)"
 
@@ -82,7 +82,7 @@ done < <(echo "$canon")
 count="$(echo "$canon" | grep -c .)"
 if [[ $errors -gt 0 ]]; then
   echo ""
-  echo "FAILED: $errors tool consistency error(s). $JSON is the source of truth."
+  echo "FAILED: $errors tool consistency error(s). $JSON is the source of truth." >&2
   exit 1
 fi
 echo "PASSED: $count tools consistent across $JSON, install.sh, and convert.sh."

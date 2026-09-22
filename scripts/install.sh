@@ -313,6 +313,7 @@ resolve_dest() {
     osaurus)     var="OSAURUS_SKILLS_DIR" ;;
     hermes)      var="HERMES_PLUGIN_DIR" ;;
     vibe)        var="VIBE_HOME" ;;
+    *) ;;
   esac
   if [[ -n "$var" && -n "${!var:-}" ]]; then printf '%s' "${!var}"; else printf '%s' "$def"; fi
 }
@@ -327,6 +328,7 @@ resolve_tool_path() {
     zcode) bin="zcode" ;;
     kimi) bin="kimi" ;; codex) bin="codex" ;; antigravity) bin="" ;;
     osaurus) bin="osaurus" ;; hermes) bin="hermes" ;; vibe) bin="vibe" ;;
+    *) ;;
   esac
   [[ -n "$bin" ]] && command -v "$bin" 2>/dev/null
 }
@@ -336,7 +338,7 @@ resolve_tool_path() {
 ensure_converted() {
   local tool="$1"
   $AUTO_CONVERT || return 0
-  case "$tool" in claude-code|copilot) return 0 ;; esac
+  case "$tool" in claude-code|copilot) return 0 ;; *) ;; esac
   local d="$INTEGRATIONS/$tool"
   # Every integrations/<tool>/ ships a committed README.md, so "any file
   # present" mistook the README for generated output and never converted in a
@@ -473,6 +475,7 @@ tool_label() {
     osaurus)     printf "%-14s  %s" "Osaurus"      "(~/.osaurus/skills)"     ;;
     hermes)      printf "%-14s  %s" "Hermes"       "(~/.hermes/plugins)"     ;;
     vibe)        printf "%-14s  %s" "Mistral Vibe" "(~/.vibe/agents)"        ;;
+    *) ;;
   esac
 }
 
@@ -505,7 +508,7 @@ division_emoji() {
 # SEL_TITLE, SEL_HINT, SEL_SUMMARY_FN, SEL_NAV, SEL_WARN_FN.
 # Mutates OPT_SEL[]; sets SEL_RESULT = next|back|quit.
 selector() {
-  local n=${#OPT_LABEL[@]} cur=0 top=0 query="" searching=false key i idx vn rows W
+  local n=${#OPT_LABEL[@]} cur=0 top=0 query="" searching=false key i idx vn rows width
   rows=$(( $(term_rows) - 9 )); (( rows < 3 )) && rows=3
   while true; do
     local view=() qlc
@@ -519,8 +522,8 @@ selector() {
     (( cur>=vn )) && cur=$(( vn>0 ? vn-1 : 0 ))
     (( cur<top )) && top=$cur
     (( cur>=top+rows )) && top=$(( cur-rows+1 ))
-    W=$(( $(term_cols) - 4 )); (( W>74 )) && W=74; (( W<40 )) && W=40
-    local buf="" hlen=$(( W - ${#SEL_TITLE} - 5 )); (( hlen<1 )) && hlen=1
+    width=$(( $(term_cols) - 4 )); (( width>74 )) && width=74; (( width<40 )) && width=40
+    local buf="" hlen=$(( width - ${#SEL_TITLE} - 5 )); (( hlen<1 )) && hlen=1
     buf+="  ${C_BOLD}${C_CYAN}${BX_TL}${BX_H}${BX_H} ${SEL_TITLE} $(repeat "$BX_H" "$hlen")${BX_TR}${C_RESET}"$'\n'
     buf+="  ${C_DIM}${SEL_HINT}${C_RESET}"$'\n\n'
     (( vn==0 )) && buf+="   ${C_DIM}(no matches)${C_RESET}"$'\n'
@@ -562,6 +565,7 @@ selector() {
       ESC)         [[ -n "$query" ]] && query="" || { SEL_RESULT=back; return; } ;;
       q|Q)         SEL_RESULT=quit; return ;;
       EOF)         SEL_RESULT=quit; return ;;
+      *) ;;
     esac
   done
 }
@@ -700,6 +704,7 @@ screen_review() {
       ENTER) if (( cur==0 )); then REVIEW_RESULT=install; return; fi ;;
       LEFT)  REVIEW_RESULT=back; return ;;
       q|Q|EOF) REVIEW_RESULT=quit; return ;;
+      *) ;;
     esac
   done
 }
@@ -718,9 +723,10 @@ interactive_wizard() {
   local screen=tools
   while true; do
     case "$screen" in
-      tools)  screen_tools;  case "$SEL_RESULT" in next) screen=teams;; quit) tui_end; exit 0;; esac ;;
-      teams)  screen_teams;  case "$SEL_RESULT" in next) screen=review;; back) screen=tools;; quit) tui_end; exit 0;; esac ;;
-      review) screen_review; case "$REVIEW_RESULT" in install) break;; back) screen=teams;; quit) tui_end; exit 0;; esac ;;
+      tools)  screen_tools;  case "$SEL_RESULT" in next) screen=teams;; quit) tui_end; exit 0;; *) ;; esac ;;
+      teams)  screen_teams;  case "$SEL_RESULT" in next) screen=review;; back) screen=tools;; quit) tui_end; exit 0;; *) ;; esac ;;
+      review) screen_review; case "$REVIEW_RESULT" in install) break;; back) screen=teams;; quit) tui_end; exit 0;; *) ;; esac ;;
+      *) ;;
     esac
   done
   tui_end
@@ -871,10 +877,8 @@ install_openclaw() {
     install_file "$d/SOUL.md" "$dest/$name/SOUL.md"
     install_file "$d/AGENTS.md" "$dest/$name/AGENTS.md"
     install_file "$d/IDENTITY.md" "$dest/$name/IDENTITY.md"
-    if command -v openclaw >/dev/null 2>&1; then
-      if [[ "$existing_agents" != *$'\n'"$name"$'\n'* ]]; then
-        openclaw agents add "$name" --workspace "$dest/$name" --non-interactive || true
-      fi
+    if command -v openclaw >/dev/null 2>&1 && [[ "$existing_agents" != *$'\n'"$name"$'\n'* ]]; then
+      openclaw agents add "$name" --workspace "$dest/$name" --non-interactive || true
     fi
     (( count++ )) || true
   done < <(find "$src" -mindepth 1 -maxdepth 1 -type d -print0)
@@ -1201,6 +1205,7 @@ install_tool() {
     osaurus)     install_osaurus     ;;
     hermes)      install_hermes      ;;
     vibe)        install_vibe        ;;
+    *) ;;
   esac
 }
 

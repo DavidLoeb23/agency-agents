@@ -32,7 +32,7 @@ JSON="divisions.json"
 NON_DIVISION_DIRS=(examples scripts integrations strategy)
 
 errors=0
-fail() { echo "ERROR $*"; errors=$((errors + 1)); }
+fail() { echo "ERROR $*" >&2; errors=$((errors + 1)); }
 
 # --- sorted, newline-delimited helpers -------------------------------------
 
@@ -82,7 +82,7 @@ compare() {
 
 # --- checks ----------------------------------------------------------------
 
-[[ -f "$JSON" ]] || { echo "ERROR $JSON not found at repo root"; exit 1; }
+[[ -f "$JSON" ]] || { echo "ERROR $JSON not found at repo root" >&2; exit 1; }
 
 compare "the agent directories on disk" "$(actual_dirs)"
 compare "scripts/convert.sh AGENT_DIRS" "$(agent_dirs_array scripts/convert.sh)"
@@ -133,7 +133,7 @@ done < <(canonical)
 count="$(canonical | wc -l | tr -d ' ')"
 if [[ $errors -gt 0 ]]; then
   echo ""
-  echo "FAILED: $errors divisions consistency error(s). $JSON is the source of truth."
+  echo "FAILED: $errors divisions consistency error(s). $JSON is the source of truth." >&2
   exit 1
 fi
 echo "PASSED: $count divisions consistent across $JSON, directories, scripts, and CI."
