@@ -46,3 +46,52 @@ jobs:
         with:
           args: >
             ${{ vars.SONAR_ORGANIZATION && format('-Dsonar.organization={0}', vars.SONAR_ORGANIZATION) || '' }}
+
+      # Print the open issues into the job log and step summary, so they can be
+      # read from GitHub without access to the SonarQube UI. Informational only:
+      # it never fails the job.
+      - name: List open issues
+        if: steps.token.outputs.present == 'true'
+        continue-on-error: true
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          report=.scannerwork/report-task.txt
+          if [ ! -f "$report" ]; then
+            echo "No $report; nothing to list."
+            exit 0
+          fi
+          server=$(sed -n 's/^serverUrl=//p' "$report")
+          key=$(sed -n 's/^projectKey=//p' "$report")
+          task=$(sed -n 's/^ceTaskUrl=//p' "$report")
+          api() { curl -sSf -u "$SONAR_TOKEN:" "$@"; }
+
+          # The server processes the report asynchronously; wait for it so the
+          # issue list reflects this analysis.
+          status=PENDING
+          for _ in $(seq 1 30); do
+            status=$(api "$task" | jq -r '.task.status')
+            case "$status" in SUCCESS|FAILED|CANCELED) break ;; esac
+            sleep 5
+          done
+          echo "Background task: $status"
+
+          if [ -n "$PR_NUMBER" ]; then scope="pullRequest=$PR_NUMBER"; else scope="branch=$BRANCH"; fi
+          api -G "$server/api/issues/search" \
+            --data-urlencode "componentKeys=$key" \
+            --data-urlencode "$scope" \
+            --data-urlencode "resolved=false" \
+            --data-urlencode "ps=500" > issues.json
+
+          total=$(jq '.total' issues.json)
+          lines=$(jq -r '.issues[] | "\(.severity // "-") \(.type // "-") \(.component | sub("^[^:]*:"; "")):\(.line // "-") [\(.rule)] \(.message)"' issues.json)
+          echo "Open issues ($scope): $total"
+          echo "$lines"
+          {
+            echo "### SonarQube: $total open issue(s) ($scope)"
+            echo
+            echo '```'
+            echo "$lines"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
