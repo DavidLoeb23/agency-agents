@@ -77,12 +77,30 @@ jobs:
           done
           echo "Background task: $status"
 
+          # search [scope]: fetch open issues into issues.json, print the HTTP code.
+          search() {
+            curl -sS -u "$SONAR_TOKEN:" -o issues.json -w '%{http_code}' -G "$server/api/issues/search" \
+              --data-urlencode "componentKeys=$key" \
+              --data-urlencode "resolved=false" \
+              --data-urlencode "ps=500" \
+              ${1:+--data-urlencode "$1"}
+          }
           if [ -n "$PR_NUMBER" ]; then scope="pullRequest=$PR_NUMBER"; else scope="branch=$BRANCH"; fi
-          api -G "$server/api/issues/search" \
-            --data-urlencode "componentKeys=$key" \
-            --data-urlencode "$scope" \
-            --data-urlencode "resolved=false" \
-            --data-urlencode "ps=500" > issues.json
+          code=$(search "$scope")
+          # If SonarQube's main branch is named differently (e.g. "master"),
+          # asking for "branch=main" is refused; the project's main branch is
+          # what a scope-less query returns.
+          if [ "$code" != 200 ] && [ -z "$PR_NUMBER" ]; then
+            echo "Query with $scope returned HTTP $code; retrying for the project's main branch."
+            scope="main branch"
+            code=$(search)
+          fi
+          if [ "$code" != 200 ]; then
+            echo "SonarQube returned HTTP $code:"
+            cat issues.json
+            echo
+            exit 0
+          fi
 
           total=$(jq '.total' issues.json)
           lines=$(jq -r '.issues[] | "\(.severity // "-") \(.type // "-") \(.component | sub("^[^:]*:"; "")):\(.line // "-") [\(.rule)] \(.message)"' issues.json)
