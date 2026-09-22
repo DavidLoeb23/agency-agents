@@ -39,6 +39,28 @@ jobs:
           # Full history so SonarQube can attribute new code and blame lines.
           fetch-depth: 0
 
+      # Builds of the repo's default branch must land on SonarQube's main
+      # branch. The scanner labels them with the git branch name ("main"); if
+      # SonarQube's main branch is named differently (e.g. "master"), that
+      # creates a secondary branch instead, which plans without branch
+      # support can't even read. Ask SonarQube for its main branch's name and
+      # analyse under it.
+      - name: Resolve SonarQube main branch
+        id: sqbranch
+        if: >
+          steps.token.outputs.present == 'true' &&
+          github.event_name != 'pull_request' &&
+          github.ref_name == github.event.repository.default_branch
+        continue-on-error: true
+        env:
+          HOST: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+        run: |
+          key=$(sed -n 's/^sonar.projectKey=//p' sonar-project.properties)
+          name=$(curl -sSf -u "$SONAR_TOKEN:" -G "$HOST/api/project_branches/list" \
+            --data-urlencode "project=$key" | jq -r '.branches[]? | select(.isMain) | .name') || name=""
+          echo "SonarQube main branch: ${name:-unknown (scanner default)}"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
       - name: Scan
         if: steps.token.outputs.present == 'true'
         uses: SonarSource/sonarqube-scan-action@v5
@@ -47,6 +69,7 @@ jobs:
         with:
           args: >
             ${{ vars.SONAR_ORGANIZATION && format('-Dsonar.organization={0}', vars.SONAR_ORGANIZATION) || '' }}
+            ${{ steps.sqbranch.outputs.name && format('-Dsonar.branch.name={0}', steps.sqbranch.outputs.name) || '' }}
 
       # Print the open issues into the job log and step summary, so they can be
       # read from GitHub without access to the SonarQube UI. Informational only:
@@ -56,7 +79,7 @@ jobs:
         continue-on-error: true
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          BRANCH: ${{ github.ref_name }}
+          BRANCH: ${{ steps.sqbranch.outputs.name || github.ref_name }}
         run: |
           report=.scannerwork/report-task.txt
           if [ ! -f "$report" ]; then
