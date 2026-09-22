@@ -14,6 +14,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   sonarqube:
@@ -91,7 +92,8 @@ jobs:
           # asking for "branch=main" is refused; the project's main branch is
           # what a scope-less query returns.
           if [ "$code" != 200 ] && [ -z "$PR_NUMBER" ]; then
-            echo "Query with $scope returned HTTP $code; retrying for the project's main branch."
+            echo "Query with $scope returned HTTP $code: $(cat issues.json)"
+            echo "Retrying for the project's main branch."
             scope="main branch"
             code=$(search)
           fi
@@ -101,6 +103,25 @@ jobs:
             echo
             exit 0
           fi
+
+          # Diagnostics: which branches SonarQube has and how much code it
+          # measured on them, to tell a real "0 issues" from an empty branch.
+          echo "::group::SonarQube project diagnostics"
+          echo "Branches:"
+          curl -sS -u "$SONAR_TOKEN:" -G "$server/api/project_branches/list" \
+            --data-urlencode "project=$key" |
+            jq -r '.branches[]? | "  \(.name) isMain=\(.isMain) analysed=\(.analysisDate // "never")"' || true
+          metrics="ncloc,files,code_smells,bugs,vulnerabilities"
+          if [ -n "$PR_NUMBER" ]; then this="pullRequest=$PR_NUMBER"; else this="branch=$BRANCH"; fi
+          for b in "" "$this"; do
+            echo "Measures for ${b:-main branch}:"
+            curl -sS -u "$SONAR_TOKEN:" -G "$server/api/measures/component" \
+              --data-urlencode "component=$key" \
+              --data-urlencode "metricKeys=$metrics" \
+              ${b:+--data-urlencode "$b"} |
+              jq -rc 'if .component then "  " + (.component.measures | map("\(.metric)=\(.value)") | join(" ")) else "  error: " + tostring end' || true
+          done
+          echo "::endgroup::"
 
           total=$(jq '.total' issues.json)
           lines=$(jq -r '.issues[] | "\(.severity // "-") \(.type // "-") \(.component | sub("^[^:]*:"; "")):\(.line // "-") [\(.rule)] \(.message)"' issues.json)
