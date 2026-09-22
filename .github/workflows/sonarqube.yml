@@ -1,0 +1,48 @@
+name: SonarQube
+
+# Scans the repo's tooling with SonarQube Cloud by default, or a SonarQube
+# Server instance when the SONAR_HOST_URL repository variable is set.
+# Project settings live in sonar-project.properties.
+#
+# Setup (Settings → Secrets and variables → Actions):
+#   secret   SONAR_TOKEN         analysis token from SonarQube (required)
+#   variable SONAR_ORGANIZATION  SonarQube Cloud organization key (Cloud only)
+#   variable SONAR_HOST_URL      e.g. https://sonar.example.com (Server only)
+#
+# Without SONAR_TOKEN (e.g. PRs from forks) the scan is skipped, not failed.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  sonarqube:
+    name: SonarQube analysis
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - name: Check for token
+        id: token
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "SONAR_TOKEN is not set; skipping SonarQube analysis."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.present == 'true'
+        with:
+          # Full history so SonarQube can attribute new code and blame lines.
+          fetch-depth: 0
+
+      - name: Scan
+        if: steps.token.outputs.present == 'true'
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+        with:
+          args: >
+            ${{ vars.SONAR_ORGANIZATION && format('-Dsonar.organization={0}', vars.SONAR_ORGANIZATION) || '' }}
