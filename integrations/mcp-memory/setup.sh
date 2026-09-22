@@ -36,22 +36,22 @@ echo ""
 # Check if an MCP client config exists in common locations
 CONFIG_FOUND=false
 
-if [ -f "$HOME/.config/claude/mcp.json" ]; then
+if [[ -f "$HOME/.config/claude/mcp.json" ]]; then
   echo "Found MCP config at ~/.config/claude/mcp.json"
   CONFIG_FOUND=true
 fi
 
-if [ -f "$HOME/.cursor/mcp.json" ]; then
+if [[ -f "$HOME/.cursor/mcp.json" ]]; then
   echo "Found MCP config at ~/.cursor/mcp.json"
   CONFIG_FOUND=true
 fi
 
-if [ -f ".mcp.json" ]; then
+if [[ -f ".mcp.json" ]]; then
   echo "Found MCP config at .mcp.json"
   CONFIG_FOUND=true
 fi
 
-if [ "$CONFIG_FOUND" = false ]; then
+if [[ "$CONFIG_FOUND" = false ]]; then
   echo "No MCP client config found."
   echo ""
   echo "Add your memory server to your MCP client config:"

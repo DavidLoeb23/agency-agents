@@ -662,6 +662,7 @@ run_conversions() {
         vibe)        convert_vibe        "$file" ;;
         aider)       accumulate_aider    "$file" ;;
         windsurf)    accumulate_windsurf "$file" ;;
+        *) ;;
       esac
 
       (( count++ )) || true
