@@ -163,7 +163,7 @@ else
 fi
 
 if [[ ${#files[@]} -eq 0 ]]; then
-  echo "No agent files found."
+  echo "No agent files found." >&2
   exit 1
 fi
 
@@ -175,12 +175,14 @@ for file in "${files[@]}"; do
 done
 
 echo ""
-echo "Results: ${errors} error(s), ${warnings} warning(s) in ${#files[@]} files."
+summary="Results: ${errors} error(s), ${warnings} warning(s) in ${#files[@]} files."
 
 if [[ $errors -gt 0 ]]; then
+  echo "$summary" >&2
   echo "FAILED: fix the errors above before merging." >&2
   exit 1
 else
+  echo "$summary"
   echo "PASSED"
   exit 0
 fi
