@@ -39,6 +39,12 @@ These examples answer the question: *"What does it actually look like when the f
 
 **Key takeaway:** All 8 agents ran in parallel and produced coherent, cross-referencing plans without coordination overhead. The output demonstrates the agency's ability to go from "find an opportunity" to "here's the full blueprint" in a single session.
 
+### [workflow-brand-os.md](./workflow-brand-os.md)
+
+**What:** A phased workflow for building a brand-centric platform (e.g. Hello Brand OS) that pairs Agency agents with Claude Code skills: brand contract, spec, build, then browser-verified review.
+
+**Key takeaway:** Agents own the role and the judgement, and skills standardize the how. Encode your brand as your own skill that points to in-repo tokens, and gate each phase.
+
 ## Adding New Examples
 
 If you run an interesting multi-agent exercise, consider adding it here. Good examples show:
